@@ -91,6 +91,7 @@ body{
 }
 .mono{font-family:'IBM Plex Mono',monospace;}
 ::selection{background:var(--cyan); color:#FFFDF7;}
+body.role-usuario .admin-only{display:none !important;}
 
 /* ---------- HEADER ---------- */
 header{
@@ -394,6 +395,27 @@ canvas{max-height:260px;}
 </head>
 <body>
 
+<!-- ================= PANTALLA DE ACCESO ================= -->
+<div id="loginOverlay" style="position:fixed; inset:0; background:var(--bg); z-index:500; display:flex; align-items:center; justify-content:center;">
+  <div style="background:#fff; border:1px solid var(--border); border-radius:16px; padding:36px 32px; width:100%; max-width:360px; box-shadow:0 10px 30px rgba(31,58,77,.12);">
+    <div style="text-align:center; margin-bottom:22px;">
+      <div style="font-size:15px; font-weight:700; color:var(--text);">Portal Intranet</div>
+      <div style="font-size:12.5px; color:var(--dim); margin-top:4px;">Ingresa tus credenciales para continuar</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <label style="font-size:13px; color:var(--dim);">Usuario
+        <input id="loginUsuario" type="text" autocomplete="username" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+      </label>
+      <label style="font-size:13px; color:var(--dim);">Contraseña
+        <input id="loginPassword" type="password" autocomplete="current-password" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+      </label>
+      <div id="loginError" style="display:none; color:var(--red); font-size:12.5px;">Usuario o contraseña incorrectos.</div>
+      <button class="btn btn-primary" id="btnLogin" style="width:100%; margin-top:6px;">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+
 <header>
   <div class="header-inner">
     <div class="brand">
@@ -427,9 +449,11 @@ canvas{max-height:260px;}
     </div>
     <nav>
       <button class="tab-btn active" data-view="registro">Registro</button>
-      <button class="tab-btn" data-view="dashboard">Dashboard Operativo</button>
+      <button class="tab-btn admin-only" data-view="dashboard">Dashboard Operativo</button>
     </nav>
     <div class="stamp-header">
+      <span id="sesionInfo" style="font-size:12.5px; color:var(--dim); margin-right:10px;"></span>
+      <button type="button" id="btnLogout" title="Cerrar sesión" style="background:none; border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; color:var(--dim); margin-right:10px;">Salir</button>
       <button type="button" id="btnLimpiarSegKpi" class="header-clear-btn" title="Limpiar segmentadores">🧹</button>
       <div class="stamp-mini" id="headerStamp">--%</div>
     </div>
@@ -544,8 +568,8 @@ canvas{max-height:260px;}
       <button class="btn-periodo" data-periodo="pre">Pre (manual)</button>
       <button class="btn-periodo" data-periodo="post">Post (digital)</button>
     </div>
-    <button class="btn btn-sm" id="btnSeed">Recargar dataset</button>
-    <button class="btn btn-sm btn-ghost" id="btnReset" style="color:var(--red); border-color:var(--red);">Reiniciar todo</button>
+    <button class="btn btn-sm admin-only" id="btnSeed">Recargar dataset</button>
+    <button class="btn btn-sm btn-ghost admin-only" id="btnReset" style="color:var(--red); border-color:var(--red);">Reiniciar todo</button>
   </div>
 
   <div class="card" id="segmentadoresCard" style="margin-bottom:20px; padding:0; overflow:hidden;">
@@ -616,6 +640,7 @@ canvas{max-height:260px;}
   <div class="card">
     <div style="padding:0 0 16px;">
       <div class="filters">
+        <input type="text" id="buscarCliente" placeholder="🔍 Buscar por empresa cliente..." style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; min-width:220px;">
         <select id="filtroArea"><option value="">Todas las áreas</option></select>
         <select id="filtroCanal"><option value="">Todos los canales</option></select>
         <select id="filtroSLA">
@@ -629,11 +654,46 @@ canvas{max-height:260px;}
       <div style="font-size:13px; color:var(--dim);" id="historicoResumen">Sin registros todavía.</div>
       <button class="btn btn-primary" id="btnExportExcel">📥 Descargar Excel</button>
     </div>
-    <!-- tabla oculta: se usa solo como fuente de datos para el filtrado/exportación -->
-    <table id="tblHistorico" style="display:none;">
-      <thead><tr><th>ID</th><th>Cliente</th><th>Área</th><th>Canal</th><th>Segmento</th><th>Monto</th><th>Tiempo</th><th>SLA</th></tr></thead>
-      <tbody></tbody>
-    </table>
+    <div style="overflow-x:auto; margin-top:14px;">
+      <table id="tblHistorico">
+        <thead><tr><th>ID</th><th>Cliente</th><th>Área</th><th>Canal</th><th>Segmento</th><th>Monto</th><th>Tiempo</th><th>SLA</th><th class="admin-only">Acciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de edición de registro -->
+  <div id="modalEditarOverlay" style="display:none; position:fixed; inset:0; background:rgba(31,58,77,.45); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:#fff; border:1px solid var(--border); border-radius:14px; padding:22px; width:100%; max-width:420px; max-height:88vh; overflow-y:auto;">
+      <h3 style="margin:0 0 14px;">Editar factura</h3>
+      <div style="display:flex; flex-direction:column; gap:10px;" id="modalEditarCampos">
+        <label style="font-size:13px; color:var(--dim);">Empresa cliente
+          <input id="editCliente" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+        </label>
+        <label style="font-size:13px; color:var(--dim);">Área responsable
+          <select id="editArea" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+            <option>Administracion</option><option>Aduanas</option><option>Almacenaje</option><option>Comercio Exterior</option><option>Transporte</option>
+          </select>
+        </label>
+        <label style="font-size:13px; color:var(--dim);">Canal de solicitud
+          <select id="editCanal" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+            <option>Correo</option><option>Presencial</option><option>Sistema ERP</option><option>Telefonico</option>
+          </select>
+        </label>
+        <label style="font-size:13px; color:var(--dim);">Segmento cliente
+          <select id="editSegmento" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+            <option>Corporativo</option><option>Ocasional</option><option>PYME</option>
+          </select>
+        </label>
+        <label style="font-size:13px; color:var(--dim);">Monto de factura (S/)
+          <input id="editMonto" type="number" step="0.01" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:18px; justify-content:flex-end;">
+        <button class="btn" id="btnCancelarEdicion" style="background:#eee;">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarEdicion">Guardar cambios</button>
+      </div>
+    </div>
   </div>
 
   <!-- Radar Predictivo IA oculto a pedido del usuario -->
@@ -669,6 +729,66 @@ canvas{max-height:260px;}
 </div>
 
 <script>
+/* =========================================================
+   ACCESO: usuarios y roles
+   ========================================================= */
+const CUENTAS = {
+  "proyecto26":  { password: "10261",  rol: "usuario",       nombre: "proyecto26" },
+  "Sashinger":   { password: "200424", rol: "administrador", nombre: "Sashinger" }
+};
+
+function aplicarRolUI(rol){
+  document.body.classList.remove("role-usuario","role-administrador");
+  document.body.classList.add(rol === "administrador" ? "role-administrador" : "role-usuario");
+}
+
+function iniciarSesionUI(usuario, rol){
+  document.getElementById("loginOverlay").style.display = "none";
+  document.getElementById("sesionInfo").textContent = usuario + " · " + (rol === "administrador" ? "Administrador" : "Usuario");
+  aplicarRolUI(rol);
+  if(rol !== "administrador"){
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    document.querySelector('.tab-btn[data-view="registro"]').classList.add("active");
+    document.getElementById("view-registro").classList.add("active");
+  }
+}
+
+(function chequearSesionExistente(){
+  const sesion = sessionStorage.getItem("sesion_usuario");
+  if(sesion){
+    try{
+      const s = JSON.parse(sesion);
+      if(CUENTAS[s.usuario] && CUENTAS[s.usuario].rol === s.rol){
+        iniciarSesionUI(s.usuario, s.rol);
+      }
+    }catch(e){}
+  }
+})();
+
+document.getElementById("btnLogin").addEventListener("click", intentarLogin);
+document.getElementById("loginPassword").addEventListener("keydown", (e)=>{ if(e.key==="Enter") intentarLogin(); });
+document.getElementById("loginUsuario").addEventListener("keydown", (e)=>{ if(e.key==="Enter") intentarLogin(); });
+
+function intentarLogin(){
+  const usuario = document.getElementById("loginUsuario").value.trim();
+  const pass = document.getElementById("loginPassword").value;
+  const cuenta = CUENTAS[usuario];
+  const errorEl = document.getElementById("loginError");
+  if(!cuenta || cuenta.password !== pass){
+    errorEl.style.display = "block";
+    return;
+  }
+  errorEl.style.display = "none";
+  sessionStorage.setItem("sesion_usuario", JSON.stringify({usuario, rol: cuenta.rol}));
+  iniciarSesionUI(usuario, cuenta.rol);
+}
+
+document.getElementById("btnLogout").addEventListener("click", ()=>{
+  sessionStorage.removeItem("sesion_usuario");
+  location.reload();
+});
+
 /* =========================================================
    CONFIGURACIÓN FIREBASE
    Reemplaza MODO_PRUEBA = false y coloca tu config real
@@ -721,6 +841,14 @@ const DataStore = {
       return;
     }
     await db.collection("facturas").doc(id).update(changes);
+  },
+  async delete(id){
+    if(MODO_PRUEBA){
+      const arr = lsGetAll().filter(r=>r.id!==id);
+      lsSaveAll(arr);
+      return;
+    }
+    await db.collection("facturas").doc(id).delete();
   }
 };
 
@@ -898,6 +1026,9 @@ document.getElementById("btnRegistrar").addEventListener("click", async ()=>{
   const cliente = document.getElementById("f_cliente").value.trim();
   if(!cliente){ showToast("Ingresa el nombre de la empresa cliente"); return; }
   const fecha = f_fecha.value ? new Date(f_fecha.value) : new Date();
+  const ahora = new Date();
+  const horas = (ahora - fecha)/3600000;
+  const cumple = horas <= SLA_HORAS ? 1 : 0;
 
   const record = {
     cliente,
@@ -909,14 +1040,14 @@ document.getElementById("btnRegistrar").addEventListener("click", async ()=>{
     monto: Number(document.getElementById("f_monto").value)||0,
     cola: Number(document.getElementById("f_cola").value)||0,
     cierre: document.getElementById("f_cierre").checked,
-    estado: "pendiente",
+    estado: "emitida",
     periodo: document.getElementById("f_periodo").value,
-    fecha_emision: null,
-    tiempo_horas: null,
-    cumple_sla: null
+    fecha_emision: ahora.toISOString(),
+    tiempo_horas: Number(horas.toFixed(2)),
+    cumple_sla: cumple
   };
   await DataStore.add(record);
-  showToast("Solicitud registrada correctamente");
+  showToast(cumple ? "Factura registrada y emitida — SLA cumplido ✓" : "Factura registrada y emitida — SLA fuera de plazo");
   document.getElementById("f_cliente").value = "";
   document.getElementById("f_monto").value = "";
   document.getElementById("f_cierre").dataset.touched = "";
@@ -1211,34 +1342,113 @@ function renderHistorico(all){
   const fa = document.getElementById("filtroArea").value;
   const fc = document.getElementById("filtroCanal").value;
   const fs = document.getElementById("filtroSLA").value;
+  const fcli = document.getElementById("buscarCliente").value.trim().toLowerCase();
   document.getElementById("filtroSLA").onchange = async ()=>renderHistorico(await DataStore.getAll());
+  const inputCliente = document.getElementById("buscarCliente");
+  if(!inputCliente.dataset.bound){
+    inputCliente.addEventListener("input", async ()=>renderHistorico(await DataStore.getAll()));
+    inputCliente.dataset.bound = "1";
+  }
 
   let rows = all.filter(r=>r.estado==="emitida");
   if(fa) rows = rows.filter(r=>r.area===fa);
   if(fc) rows = rows.filter(r=>r.canal===fc);
   if(fs!=="") rows = rows.filter(r=>String(r.cumple_sla)===fs);
+  if(fcli) rows = rows.filter(r=>(r.cliente||"").toLowerCase().includes(fcli));
+
+  // más recientes primero
+  rows = rows.slice().sort((a,b)=> new Date(b.fecha_solicitud) - new Date(a.fecha_solicitud));
 
   __historicoFiltrado = rows;
+
+  const hayBusquedaOFiltro = !!(fa || fc || fs !== "" || fcli);
 
   const resumen = document.getElementById("historicoResumen");
   if(!rows.length){
     resumen.textContent = "Sin registros que coincidan con el filtro.";
+  } else if(hayBusquedaOFiltro){
+    const pct = Math.round(100*rows.filter(r=>r.cumple_sla===1).length/rows.length);
+    resumen.textContent = rows.length+" factura(s) encontrada(s) — "+pct+"% cumple SLA. Usa el botón para descargarlas en Excel.";
   } else {
     const pct = Math.round(100*rows.filter(r=>r.cumple_sla===1).length/rows.length);
-    resumen.textContent = rows.length+" factura(s) — "+pct+"% cumple SLA. Usa el botón para descargarlas en Excel.";
+    resumen.textContent = "Mostrando los últimos "+Math.min(rows.length,20)+" de "+rows.length+" factura(s) — "+pct+"% cumple SLA. Usa el botón para descargarlas en Excel.";
   }
 
-  // tabla oculta: sigue poblada como fuente de datos, no se muestra al usuario
+  // sin filtro/búsqueda activa: solo los 20 más recientes.
+  // con filtro o búsqueda activa: se muestran todas las coincidencias (aunque estén fuera de esos 20).
+  const rowsAMostrar = hayBusquedaOFiltro ? rows.slice(0,500) : rows.slice(0,20);
+
   const tb = document.querySelector("#tblHistorico tbody");
   tb.innerHTML="";
-  rows.slice(0,500).forEach(r=>{
+  rowsAMostrar.forEach(r=>{
     const tr = document.createElement("tr");
     tr.innerHTML = `<td class="mono">${(r.id||"").slice(-6)}</td><td>${escapeHTML(r.cliente)}</td><td>${r.area}</td><td>${r.canal}</td><td>${r.segmento}</td>
       <td class="mono">S/ ${Number(r.monto||0).toFixed(2)}</td><td class="mono">${r.tiempo_horas}h</td>
-      <td>${r.cumple_sla ? '<span class="badge ok"><span class="badge-dot"></span>Cumple</span>' : '<span class="badge risk"><span class="badge-dot"></span>Fuera</span>'}</td>`;
+      <td>${r.cumple_sla ? '<span class="badge ok"><span class="badge-dot"></span>Cumple</span>' : '<span class="badge risk"><span class="badge-dot"></span>Fuera</span>'}</td>
+      <td style="white-space:nowrap;" class="admin-only">
+        <button class="btn" data-edit="${r.id}" style="padding:4px 10px; font-size:12px; background:var(--cyan-dim); margin-right:6px;">Editar</button>
+        <button class="btn" data-del="${r.id}" style="padding:4px 10px; font-size:12px; background:#FBE2E2; color:#B23A3A;">Eliminar</button>
+      </td>`;
     tb.appendChild(tr);
   });
 }
+
+let __registroEnEdicion = null;
+
+function abrirModalEditar(id){
+  const rec = __historicoFiltrado.find(r=>r.id===id);
+  if(!rec){ showToast("No se encontró el registro"); return; }
+  __registroEnEdicion = id;
+  document.getElementById("editCliente").value = rec.cliente || "";
+  document.getElementById("editArea").value = rec.area || "Administracion";
+  document.getElementById("editCanal").value = rec.canal || "Correo";
+  document.getElementById("editSegmento").value = rec.segmento || "PYME";
+  document.getElementById("editMonto").value = rec.monto || 0;
+  document.getElementById("modalEditarOverlay").style.display = "flex";
+}
+function cerrarModalEditar(){
+  document.getElementById("modalEditarOverlay").style.display = "none";
+  __registroEnEdicion = null;
+}
+document.getElementById("btnCancelarEdicion").addEventListener("click", cerrarModalEditar);
+document.getElementById("modalEditarOverlay").addEventListener("click", (e)=>{
+  if(e.target.id === "modalEditarOverlay") cerrarModalEditar();
+});
+document.getElementById("btnGuardarEdicion").addEventListener("click", async ()=>{
+  if(!__registroEnEdicion) return;
+  const changes = {
+    cliente: document.getElementById("editCliente").value.trim(),
+    area: document.getElementById("editArea").value,
+    canal: document.getElementById("editCanal").value,
+    segmento: document.getElementById("editSegmento").value,
+    monto: Number(document.getElementById("editMonto").value) || 0
+  };
+  try{
+    await DataStore.update(__registroEnEdicion, changes);
+    showToast("Factura actualizada");
+    cerrarModalEditar();
+    renderHistorico(await DataStore.getAll());
+  }catch(e){
+    showToast("Error al guardar: "+(e.message||e));
+  }
+});
+
+document.querySelector("#tblHistorico tbody").addEventListener("click", async (e)=>{
+  if(!document.body.classList.contains("role-administrador")) return;
+  const editId = e.target.getAttribute("data-edit");
+  const delId = e.target.getAttribute("data-del");
+  if(editId){ abrirModalEditar(editId); return; }
+  if(delId){
+    if(!confirm("¿Eliminar esta factura? Esta acción no se puede deshacer.")) return;
+    try{
+      await DataStore.delete(delId);
+      showToast("Factura eliminada");
+      renderHistorico(await DataStore.getAll());
+    }catch(e){
+      showToast("Error al eliminar: "+(e.message||e));
+    }
+  }
+});
 
 document.getElementById("btnExportExcel").addEventListener("click", ()=>{
   if(!__historicoFiltrado.length){ showToast("No hay facturas para exportar con este filtro"); return; }
@@ -1328,6 +1538,7 @@ async function cargarDataset(){
 }
 
 document.getElementById("btnSeed").addEventListener("click", async ()=>{
+  if(!document.body.classList.contains("role-administrador")) return;
   showToast("Cargando "+SEED_DATA.length+" registros del dataset...");
   await cargarDataset();
   showToast(SEED_DATA.length+" facturas del dataset cargadas (sin duplicar)");
@@ -1336,6 +1547,7 @@ document.getElementById("btnSeed").addEventListener("click", async ()=>{
 });
 
 document.getElementById("btnReset").addEventListener("click", async ()=>{
+  if(!document.body.classList.contains("role-administrador")) return;
   if(!confirm("Esto borrará TODAS las facturas guardadas (dataset y las que registraste manualmente). ¿Continuar?")) return;
   if(MODO_PRUEBA){
     lsSaveAll([]);
