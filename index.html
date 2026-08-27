@@ -1621,7 +1621,22 @@ const HERRAMIENTAS_IA = [
    este navegador (localStorage), nunca se envía a ningún
    servidor propio.
 --------------------------------------------------------- */
+/* IMPORTANTE: pega aquí tu clave REAL de Gemini (empieza con "AIzaSy...").
+   La consigues gratis, sin tarjeta, en https://aistudio.google.com/apikey
+   Como este archivo es público (GitHub Pages), cualquiera que vea el
+   código fuente podrá ver esta clave. Para limitar el riesgo, restringe
+   la clave en Google AI Studio / Google Cloud Console a tu dominio
+   (ch-data.github.io) usando "restricciones de referente HTTP". */
+const DEFAULT_GEMINI_API_KEY = "PON_AQUI_TU_CLAVE_AIzaSy...";
+
 function getApiKey(){
+  // Si arriba pusiste una clave real (empieza con AIzaSy), se usa
+  // siempre y NUNCA se vuelve a preguntar. Si la dejas como está
+  // (placeholder) o inválida, cae al flujo de "pedir clave" para que
+  // cada usuario pueda ingresar la suya (se guarda solo en su navegador).
+  if(DEFAULT_GEMINI_API_KEY && DEFAULT_GEMINI_API_KEY.startsWith("AIzaSy")){
+    return DEFAULT_GEMINI_API_KEY;
+  }
   return localStorage.getItem("gemini_api_key") || "";
 }
 function pedirApiKey(){
@@ -1640,7 +1655,7 @@ function pedirApiKey(){
   return limpia;
 }
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 /* Convierte nuestros esquemas de herramientas (estilo Anthropic,
    en minúsculas) al formato que exige Gemini (tipos en MAYÚSCULA). */
@@ -1705,11 +1720,18 @@ async function llamarGemini(systemPrompt, contents){
     }
   );
 
-  if(response.status === 400 || response.status === 403){
+  if(response.status === 400 || response.status === 403 || response.status === 404){
     const errBody = await response.json().catch(()=>({}));
     const msg = errBody?.error?.message || ("Error HTTP "+response.status);
-    if(/api key|api_key_invalid|permission/i.test(msg)) localStorage.removeItem("gemini_api_key");
-    throw new Error("Problema con la clave de API de Gemini: "+msg+". Vuelve a intentarlo para ingresar una clave válida.");
+    // Solo se borra la clave guardada si el error realmente menciona
+    // la clave/permisos. Un modelo inexistente, un JSON mal formado,
+    // etc. NO deben hacer que se pida la clave de nuevo.
+    const esProblemaDeClave = /api key|api_key_invalid|permission denied|unauthenticated/i.test(msg);
+    if(esProblemaDeClave){
+      localStorage.removeItem("gemini_api_key");
+      throw new Error("Problema con la clave de API de Gemini: "+msg+". Vuelve a intentarlo para ingresar una clave válida.");
+    }
+    throw new Error("Error de la API de Gemini ("+response.status+"): "+msg);
   }
   if(response.status === 429){
     throw new Error("Se alcanzó el límite gratuito de uso de Gemini por ahora (cuota por minuto/día). Espera un momento e inténtalo de nuevo.");
