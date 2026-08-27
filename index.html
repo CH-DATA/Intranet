@@ -391,27 +391,143 @@ canvas{max-height:260px;}
 #chatInputRow{display:flex; gap:8px; padding:12px; border-top:1px solid var(--border);}
 #chatInputRow input{flex:1; margin:0;}
 #chatInputRow button{width:auto; margin:0; padding:0 16px;}
+/* ============ PANTALLA DE ACCESO — rediseño ============ */
+@keyframes loginRingSpin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+@keyframes loginPulse{ 0%,100%{opacity:.55; transform:scale(1);} 50%{opacity:1; transform:scale(1.06);} }
+@keyframes loginDotTravel{ 0%{ left:-4%; opacity:0;} 8%{opacity:1;} 92%{opacity:1;} 100%{ left:104%; opacity:0;} }
+@keyframes loginFadeUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+#loginOverlay{
+  position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(ellipse 900px 500px at 15% 8%, rgba(45,143,196,.16), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 90% 92%, rgba(45,143,196,.14), transparent 60%),
+    linear-gradient(180deg, #EAF4FB 0%, #DCEEFA 100%);
+  overflow:hidden;
+}
+#loginOverlay .login-route{
+  position:absolute; left:0; right:0; height:1px; border-top:1.5px dashed rgba(45,143,196,.35);
+}
+#loginOverlay .login-route.r1{ top:22%; }
+#loginOverlay .login-route.r2{ top:78%; }
+#loginOverlay .login-route .login-dot{
+  position:absolute; top:-4px; width:9px; height:9px; border-radius:50%;
+  background:var(--cyan); box-shadow:0 0 0 4px rgba(45,143,196,.18), 0 0 10px rgba(45,143,196,.6);
+  animation:loginDotTravel 7s linear infinite;
+}
+#loginOverlay .login-route.r2 .login-dot{ animation-duration:9s; animation-delay:1.4s; background:#1F3A4D; box-shadow:0 0 0 4px rgba(31,58,77,.14), 0 0 10px rgba(31,58,77,.45); }
+
+.login-card{
+  position:relative; z-index:1; background:rgba(255,255,255,.82); backdrop-filter:blur(14px);
+  border:1px solid rgba(191,224,242,.9); border-radius:20px; padding:52px 34px 34px;
+  width:100%; max-width:372px; box-shadow:0 24px 60px -20px rgba(18,48,73,.28);
+  animation:loginFadeUp .5s ease both;
+}
+.login-badge-wrap{
+  position:absolute; top:-46px; left:50%; transform:translateX(-50%);
+  width:92px; height:92px;
+}
+.login-badge-ring{
+  position:absolute; inset:0; border-radius:50%;
+  border:1.5px dashed var(--cyan); opacity:.55;
+  animation:loginRingSpin 18s linear infinite;
+}
+.login-badge-glow{
+  position:absolute; inset:8px; border-radius:50%;
+  background:radial-gradient(circle, rgba(45,143,196,.28), transparent 70%);
+  animation:loginPulse 3.2s ease-in-out infinite;
+}
+.login-badge{
+  position:absolute; inset:6px; border-radius:50%;
+  background:linear-gradient(155deg,#2D8FC4,#1F3A4D);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 10px 24px -6px rgba(31,58,77,.5), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.login-badge svg{ width:34px; height:34px; }
+
+.login-title{ text-align:center; margin-top:16px; }
+.login-title h1{
+  font-family:'IBM Plex Sans'; font-size:19px; font-weight:700; color:var(--text);
+  letter-spacing:-.01em; margin:0;
+}
+.login-title p{
+  font-family:'IBM Plex Mono'; font-size:11px; color:var(--dim); letter-spacing:.03em;
+  margin:6px 0 0; text-transform:uppercase;
+}
+
+.login-field{ position:relative; margin-top:16px; }
+.login-field svg{
+  position:absolute; left:13px; top:50%; transform:translateY(-50%);
+  width:16px; height:16px; stroke:var(--dim2); pointer-events:none;
+}
+.login-field input{
+  width:100%; padding:12px 13px 12px 38px; border:1.5px solid var(--border); border-radius:10px;
+  font-family:'IBM Plex Sans'; font-size:14px; background:#fff; transition:border-color .15s, box-shadow .15s;
+}
+.login-field input:focus{ outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px rgba(45,143,196,.15); }
+.login-field label{
+  font-size:11px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.05em;
+  margin:0 0 6px; display:block;
+}
+
+.login-btn{
+  width:100%; margin-top:22px; padding:13px; border:none; border-radius:10px; cursor:pointer;
+  background:linear-gradient(135deg,#2D8FC4,#1F6E9E); color:#fff;
+  font-family:'IBM Plex Sans'; font-weight:700; font-size:14px; letter-spacing:.01em;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  box-shadow:0 10px 22px -8px rgba(45,143,196,.6); transition:transform .12s, box-shadow .12s;
+}
+.login-btn:hover{ transform:translateY(-1px); box-shadow:0 14px 26px -8px rgba(45,143,196,.7); }
+.login-btn:active{ transform:translateY(0); }
+.login-btn svg{ width:15px; height:15px; }
+
+#loginError{
+  text-align:center; font-family:'IBM Plex Sans'; font-size:12.5px; margin-top:12px;
+}
 </style>
 </head>
 <body>
 
 <!-- ================= PANTALLA DE ACCESO ================= -->
-<div id="loginOverlay" style="position:fixed; inset:0; background:var(--bg); z-index:500; display:flex; align-items:center; justify-content:center;">
-  <div style="background:#fff; border:1px solid var(--border); border-radius:16px; padding:36px 32px; width:100%; max-width:360px; box-shadow:0 10px 30px rgba(31,58,77,.12);">
-    <div style="text-align:center; margin-bottom:22px;">
-      <div style="font-size:15px; font-weight:700; color:var(--text);">Portal Intranet</div>
-      <div style="font-size:12.5px; color:var(--dim); margin-top:4px;">Ingresa tus credenciales para continuar</div>
+<div id="loginOverlay">
+  <div class="login-route r1"><div class="login-dot"></div></div>
+  <div class="login-route r2"><div class="login-dot"></div></div>
+
+  <div class="login-card">
+    <div class="login-badge-wrap">
+      <div class="login-badge-ring"></div>
+      <div class="login-badge-glow"></div>
+      <div class="login-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/>
+          <path d="M15 3v4h4"/>
+          <path d="m8.5 13.5 2 2 4.5-4.5"/>
+        </svg>
+      </div>
     </div>
-    <div style="display:flex; flex-direction:column; gap:12px;">
-      <label style="font-size:13px; color:var(--dim);">Usuario
-        <input id="loginUsuario" type="text" autocomplete="username" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
-      </label>
-      <label style="font-size:13px; color:var(--dim);">Contraseña
-        <input id="loginPassword" type="password" autocomplete="current-password" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; margin-top:4px;">
-      </label>
-      <div id="loginError" style="display:none; color:var(--red); font-size:12.5px;">Usuario o contraseña incorrectos.</div>
-      <button class="btn btn-primary" id="btnLogin" style="width:100%; margin-top:6px;">Ingresar</button>
+
+    <div class="login-title">
+      <h1>Portal Intranet</h1>
+      <p>Control de facturación &amp; SLA</p>
     </div>
+
+    <div class="login-field">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+      <label for="loginUsuario">Usuario</label>
+      <input id="loginUsuario" type="text" autocomplete="username" placeholder="Tu usuario">
+    </div>
+    <div class="login-field">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <label for="loginPassword">Contraseña</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+
+    <div id="loginError" style="display:none; color:var(--red);">Usuario o contraseña incorrectos.</div>
+
+    <button class="login-btn" id="btnLogin">
+      Ingresar
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+    </button>
   </div>
 </div>
 
@@ -445,7 +561,7 @@ canvas{max-height:260px;}
       </div>
       <div class="brand-text">
         <h1>Portal Intranet</h1>
-        <div style="font-size:10px; color:var(--dim2); font-family:'IBM Plex Mono', monospace;">build v6</div>
+        <div style="font-size:10px; color:var(--dim2); font-family:'IBM Plex Mono', monospace;">build v7 (con columna Registrado)</div>
       </div>
     </div>
     <nav>
@@ -655,7 +771,7 @@ canvas{max-height:260px;}
     </div>
     <div style="overflow-x:auto; margin-top:14px;">
       <table id="tblHistorico">
-        <thead><tr><th>ID</th><th>Cliente</th><th>Área</th><th>Canal</th><th>Segmento</th><th>Monto</th><th>Tiempo</th><th>SLA</th><th class="admin-only">Acciones</th></tr></thead>
+        <thead><tr><th>ID</th><th>Cliente</th><th>Área</th><th>Canal</th><th>Segmento</th><th>Monto</th><th>Tiempo</th><th>Registrado</th><th>SLA</th><th class="admin-only">Acciones</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -1389,6 +1505,7 @@ function renderHistorico(all){
     }
     tr.innerHTML = `<td class="mono">${(r.id||"").slice(-6)}</td><td>${escapeHTML(r.cliente)} ${esDeHoy ? '<span class="badge" style="background:#2D8FC4; color:#fff; border:none; margin-left:6px;">🆕 Nuevo</span>' : ''}</td><td>${r.area}</td><td>${r.canal}</td><td>${r.segmento}</td>
       <td class="mono">S/ ${Number(r.monto||0).toFixed(2)}</td><td class="mono">${r.tiempo_horas}h</td>
+      <td class="mono">${fmtFecha(r.fecha_emision)}</td>
       <td>${r.cumple_sla ? '<span class="badge ok"><span class="badge-dot"></span>Cumple</span>' : '<span class="badge risk"><span class="badge-dot"></span>Fuera</span>'}</td>
       <td style="white-space:nowrap;" class="admin-only">
         <button class="btn" data-edit="${r.id}" style="padding:4px 10px; font-size:12px; background:var(--cyan-dim); margin-right:6px;">Editar</button>
