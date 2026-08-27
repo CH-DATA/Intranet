@@ -1356,8 +1356,8 @@ function renderHistorico(all){
   if(fs!=="") rows = rows.filter(r=>String(r.cumple_sla)===fs);
   if(fcli) rows = rows.filter(r=>(r.cliente||"").toLowerCase().includes(fcli));
 
-  // más recientes primero
-  rows = rows.slice().sort((a,b)=> new Date(b.fecha_solicitud) - new Date(a.fecha_solicitud));
+  // más recientes primero (según el momento real de emisión/registro, no la fecha editable de solicitud)
+  rows = rows.slice().sort((a,b)=> new Date(b.fecha_emision||b.fecha_solicitud) - new Date(a.fecha_emision||a.fecha_solicitud));
 
   __historicoFiltrado = rows;
 
